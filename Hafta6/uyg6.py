@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import threading
 
-class ImageApp:
+class GammaApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Gamma Ayarı Uygulaması")
@@ -26,12 +26,12 @@ class ImageApp:
         load_button.grid(row=0, column=0, padx=10)
         
         # Gamma Artırma Butonu
-        gamma_increase_button = tk.Button(button_frame, text="Gamma Artır", font=("Arial", 12), command=lambda: self.run_in_thread(self.adjust_gamma, gamma=1.5), bg="#5A5A5A", fg="white", padx=10, pady=5)
-        gamma_increase_button.grid(row=0, column=1, padx=10)
+        increase_button = tk.Button(button_frame, text="Gamma Artır", font=("Arial", 12), command=lambda: self.run_in_thread(self.adjust_gamma, 1.5), bg="#5A5A5A", fg="white", padx=10, pady=5)
+        increase_button.grid(row=0, column=1, padx=10)
         
         # Gamma Azaltma Butonu
-        gamma_decrease_button = tk.Button(button_frame, text="Gamma Azalt", font=("Arial", 12), command=lambda: self.run_in_thread(self.adjust_gamma, gamma=0.5), bg="#5A5A5A", fg="white", padx=10, pady=5)
-        gamma_decrease_button.grid(row=0, column=2, padx=10)
+        decrease_button = tk.Button(button_frame, text="Gamma Azalt", font=("Arial", 12), command=lambda: self.run_in_thread(self.adjust_gamma, 0.5), bg="#5A5A5A", fg="white", padx=10, pady=5)
+        decrease_button.grid(row=0, column=2, padx=10)
 
         # Yükleniyor etiketi
         self.loading_label = tk.Label(root, text="", font=("Arial", 12), bg="#2C2C2C", fg="white")
@@ -40,10 +40,10 @@ class ImageApp:
         # Görüntü alanı
         self.image_label = tk.Label(root, bg="#2C2C2C")
         self.image_label.pack(pady=20)
-        
+
         # OpenCV görüntüsü için değişken
         self.cv_image = None
-        
+
     def load_image(self):
         file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.jpg *.jpeg *.png")])
         if file_path:
@@ -85,36 +85,31 @@ class ImageApp:
     def run_in_thread(self, func, gamma):
         # "Yükleniyor..." mesajını göster
         self.loading_label.config(text="Yükleniyor...")
-
+        
         # İş parçacığını başlat
         thread = threading.Thread(target=func, args=(gamma,))
         thread.start()
 
     def adjust_gamma(self, gamma):
         if self.cv_image is not None:
-            # Gamma ayarını uygula
-            adjusted_image = self.apply_gamma(self.cv_image, gamma)
-            self.display_image(adjusted_image)
+            # Yeni bir görüntü oluştur (aynı boyutlarda ve aynı veri türünde)
+            height, width, channels = self.cv_image.shape
+            adjusted_gamma = np.zeros((height, width, channels), dtype=np.uint8)
+
+            # Her piksel üzerinde gamma işlemini uygula
+            for r in range(height):
+                for c in range(width):
+                    for k in range(channels):
+                        # Gamma ayarını uygula: J(r, c) = 255 * [(I(r, c) / 255)^(1/gamma)]
+                        normalized_pixel = self.cv_image[r, c, k] / 255.0
+                        adjusted_pixel = 255 * (normalized_pixel ** (1 / gamma))
+                        adjusted_gamma[r, c, k] = int(adjusted_pixel)
+
+            self.display_image(adjusted_gamma)
         else:
             messagebox.showwarning("Uyarı", "Önce bir resim yükleyin.")
 
-    def apply_gamma(self, image, gamma):
-        # Yeni bir görüntü oluştur (aynı boyutlarda ve aynı veri türünde)
-        height, width, channels = image.shape
-        adjusted = np.zeros((height, width, channels), dtype=np.uint8)
-        
-        # Her piksel üzerinde gamma işlemini uygula
-        for r in range(height):
-            for c in range(width):
-                for k in range(channels):
-                    # Gamma dönüşüm formülü: J(r, c) = 255 * [(I(r, c) / 255)^(1/gamma)]
-                    normalized_pixel = image[r, c, k] / 255.0
-                    adjusted_pixel = 255 * (normalized_pixel ** (1 / gamma))
-                    adjusted[r, c, k] = int(adjusted_pixel)
-        
-        return adjusted
-
 # Tkinter Uygulaması Başlat
 root = tk.Tk()
-app = ImageApp(root)
+app = GammaApp(root)
 root.mainloop()
